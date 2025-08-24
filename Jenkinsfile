@@ -9,7 +9,7 @@ pipeline {
         }
         stage('Deploy') {
             steps {
-                sh '''
+                bat '''
                     # Kill old process on 8081 (nếu có)
                     fuser -k 8081/tcp || true
                     
