@@ -1,44 +1,49 @@
 pipeline {
-    agent any
+  agent any
 
-    stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main', url: 'https://github.com/nhathoang1505/jenkins-demo2.git'
-            }
-        }
-
-        stage('Build') {
-            steps {
-                bat 'javac -d . src/WebServer.java'
-            }
-        }
-
-        stage('Run') {
-            steps {
-                // Start WebServer in background
-                bat 'start /B java WebServer'
-                // Wait 5s cho server khởi động
-                bat 'ping -n 5 127.0.0.1 >nul'
-            }
-        }
-
-        stage('Test') {
-            steps {
-                bat 'curl http://localhost:8081'
-            }
-        }
+  stages {
+    stage('Checkout') {
+      steps {
+        git url: 'https://github.com/nhathoang1505/jenkins-demo2.git', branch: 'main'
+      }
     }
 
-    post {
-        always {
-            echo 'Cleaning up...'
-            // Kill đúng process chiếm port 8081 (tránh PID = 0)
-            bat '''
-            for /F "tokens=5" %%a in ('netstat -ano ^| findstr :8081') do (
-                if not "%%a"=="0" taskkill /PID %%a /F
-            )
-            '''
-        }
+    stage('Build') {
+      steps {
+        bat '''
+        javac -d . src\\WebServer.java
+        '''
+      }
     }
+
+    stage('Run') {
+      steps {
+        bat 'start /B java WebServer'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        bat '''
+        ping -n 5 127.0.0.1 >nul
+        curl http://localhost:8081
+        '''
+      }
+    }
+  }
+
+  post {
+    always {
+      bat '''
+      @echo off
+      setlocal
+      echo Cleaning up port 8081...
+      for /f "tokens=5" %%p in ('netstat -ano ^| findstr /R /C:"TCP.*:8081.*LISTENING"') do (
+        taskkill /PID %%p /F /T >nul 2>&1
+      )
+      exit /b 0
+      '''
+    }
+  }
 }
+
