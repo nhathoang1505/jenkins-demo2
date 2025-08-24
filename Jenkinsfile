@@ -46,3 +46,15 @@ pipeline {
     }
   }
 }
+stage('Deploy') {
+    steps {
+        powershell '''
+            # Kill old process on port 8081 if exists
+            Get-Process -Id (Get-NetTCPConnection -LocalPort 8081 -ErrorAction SilentlyContinue).OwningProcess -ErrorAction SilentlyContinue | Stop-Process -Force
+
+            # Start server in background
+            Start-Process java -ArgumentList "WebServer"
+        '''
+    }
+}
+
