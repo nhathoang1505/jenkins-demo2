@@ -10,31 +10,22 @@ pipeline {
 
         stage('Build') {
             steps {
-                bat '''
-                if not exist build mkdir build
-                javac -d build src\\WebServer.java
-                '''
+                bat 'javac -d . src/WebServer.java'
             }
         }
 
-        stage('Deploy (start server)') {
+        stage('Run') {
             steps {
-                bat '''
-                if not exist deploy mkdir deploy
-                REM chạy nền, log vào deploy\\webserver.log
-                start "" /b cmd /c "java -cp build WebServer > deploy\\webserver.log 2>&1"
-                '''
+                // Start WebServer in background
+                bat 'start /B java WebServer'
+                // Wait 5s cho server khởi động
+                bat 'ping -n 5 127.0.0.1 >nul'
             }
         }
 
-        stage('Verify') {
+        stage('Test') {
             steps {
-                bat '''
-                REM Đợi server chạy lên
-                timeout /t 5 /nobreak
-                REM Test bằng curl
-                curl http://localhost:8081
-                '''
+                bat 'curl http://localhost:8081'
             }
         }
     }
@@ -42,9 +33,11 @@ pipeline {
     post {
         always {
             echo 'Cleaning up...'
+            // Kill đúng process chiếm port 8081 (tránh PID = 0)
             bat '''
-            REM Dọn dẹp process java chạy nền
-            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081') do taskkill /PID %%a /F
+            for /F "tokens=5" %%a in ('netstat -ano ^| findstr :8081') do (
+                if not "%%a"=="0" taskkill /PID %%a /F
+            )
             '''
         }
     }
