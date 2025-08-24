@@ -4,7 +4,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/<tên của bạn>/jenkins-demo1.git'
+                git branch: 'main', url: 'https://github.com/nhathoang1505/jenkins-demo2.git'
             }
         }
 
@@ -17,19 +17,11 @@ pipeline {
             }
         }
 
-        stage('Stop previous on 8081') {
-            steps {
-                bat '''
-                for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081 ^| findstr LISTENING') do taskkill /PID %%a /F
-                exit /b 0
-                '''
-            }
-        }
-
-        stage('Deploy') {
+        stage('Deploy (start server)') {
             steps {
                 bat '''
                 if not exist deploy mkdir deploy
+                REM chạy nền, log vào deploy\\webserver.log
                 start "" /b cmd /c "java -cp build WebServer > deploy\\webserver.log 2>&1"
                 '''
             }
@@ -38,21 +30,22 @@ pipeline {
         stage('Verify') {
             steps {
                 bat '''
-                timeout /t 3 > NUL
-                curl -s http://localhost:8081 > deploy\\check.txt
-                type deploy\\check.txt
-                findstr /C:"Hello from Jenkins CI/CD" deploy\\check.txt
+                REM Đợi server chạy lên
+                timeout /t 5 /nobreak
+                REM Test bằng curl
+                curl http://localhost:8081
                 '''
             }
         }
     }
 
     post {
-        success {
-            echo '✅ CI/CD OK — mở http://localhost:8081 để xem.'
-        }
-        failure {
-            echo '❌ Lỗi rồi — xem log ở Console Output.'
+        always {
+            echo 'Cleaning up...'
+            bat '''
+            REM Dọn dẹp process java chạy nền
+            for /f "tokens=5" %%a in ('netstat -ano ^| findstr :8081') do taskkill /PID %%a /F
+            '''
         }
     }
 }
